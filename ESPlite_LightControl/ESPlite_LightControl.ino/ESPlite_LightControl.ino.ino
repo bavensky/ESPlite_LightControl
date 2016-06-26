@@ -7,6 +7,7 @@
 #include <EEPROM.h>
 #include <MicroGear.h>
 #include "DHT.h"
+#include <ESPert.h>
 
 const char* ssid     = "ESPERT-002";
 const char* password = "espertap";
@@ -24,6 +25,8 @@ AuthClient *authclient;
 
 int timer = 0;
 MicroGear microgear(client);
+
+ESPert espert;
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -62,20 +65,17 @@ void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
 
   String stateStr = String(strState).substring(0, msglen);
 
-  //=========== ช่วงประมวลผลคำสั่ง =============
+  Serial.print("Topic is ");
+  Serial.println(topic);
 
   if (stateStr == "ON")
   {
     digitalWrite(LEDPin, LOW);
-    //    microgear.chat("testledstatus", "ON");        //==== คำสั่ง chat เพื่อบอกส่งค่าสถานะไปยังหลอด LED บน NETPIE Freeboard
   }
   else if (stateStr == "OFF")
   {
     digitalWrite(LEDPin, HIGH);
-    //    microgear.chat("testledstatus", "OFF");       //==== คำสั่ง chat เพื่อบอกส่งค่าสถานะไปยังหลอด LED บน NETPIE Freeboard
   }
-
-  //=========== ช่วงประมวลผลคำสั่ง  =============
 }
 
 void setup() {
@@ -90,6 +90,10 @@ void setup() {
 
   pinMode(LEDPin, OUTPUT);
   digitalWrite(16, LOW);
+
+  espert.init();
+  espert.oled.init();
+  delay(2000);
 
   dht.begin();
 
@@ -115,21 +119,35 @@ void loop() {
   if (microgear.connected())
   {
     microgear.loop();
- // อ่านค่าจากเซ็นเซอร์ DHt22
+
+    // อ่านค่าจากเซ็นเซอร์ DHt22
     float tempread = dht.readTemperature();
     float humidread = dht.readHumidity();
-// ประกาศตัวแปรเพื่อเก็บค่าสำหรับส่งไปยัง netpie
+    // ประกาศตัวแปรเพื่อเก็บค่าสำหรับส่งไปยัง netpie
     char temp[10];
     char humid[10];
-// แยกจำนวนเลขทศนิยมออก เพื่อเก็บไว้ในอาเรย์
+    // แยกจำนวนเลขทศนิยมออก เพื่อเก็บไว้ในอาเรย์
     int tempread_decimal = (tempread - (int)tempread) * 100;
     int humidread_decimal = (humidread - (int)humidread) * 100;
-// บันทึกต่าในอาเรย์ในส่วนของจำนวนจริง และทศนิม
+    // บันทึกต่าในอาเรย์ในส่วนของจำนวนจริง และทศนิม
     sprintf(temp, "%d.%d", (int)tempread, tempread_decimal);
     sprintf(humid, "%d.%d", (int)humidread, humidread_decimal);
-// ส่งค่าไปยัง netpie
+    // ส่งค่าไปยัง netpie
     microgear.chat("smartfarm/Temperature", temp);
     microgear.chat("smartfarm/Humidity", humid);
+
+    espert.oled.clear();
+    espert.oled.setTextSize(1);
+    espert.oled.setTextColor(ESPERT_WHITE);
+    espert.oled.setCursor(0, 32);
+
+    espert.oled.println("Hello NETPIE");
+    espert.oled.print("Temperature = ");
+    espert.oled.println(dht.readTemperature());
+    espert.oled.print("Humidity = ");
+    espert.oled.println(dht.readHumidity());
+    espert.oled.update();
+
     Serial.println("connect...");
     Serial.print("Temperature = ");
     Serial.print(tempread);
@@ -142,5 +160,4 @@ void loop() {
     Serial.println("connection lost, reconnect...");
     microgear.connect(APPID);
   }
-  delay(1000);
 }
