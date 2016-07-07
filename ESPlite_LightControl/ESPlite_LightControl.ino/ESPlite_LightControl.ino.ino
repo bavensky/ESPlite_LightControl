@@ -9,13 +9,14 @@
 #include "DHT.h"
 #include <ESPert.h>
 
-const char* ssid     = "ESPERT-002";
-const char* password = "espertap";
+const char* ssid     = "AVEC_RMUTL";  // Change your ssid wifi
+const char* password = "avecqwerty";  // Change your password wifi
 
-#define APPID   "HelloCMMC"
-#define KEY     "BZYTbAa9ItnMyeW"
-#define SECRET  "h4aeKNOFIlSatTS8ADNk3Ft3O"
-#define ALIAS   "smartfarm"
+#define APPID   "HelloCMMC"             // Change your appID
+#define KEY     "BZYTbAa9ItnMyeW"       // Change your Key
+#define SECRET  "h4aeKNOFIlSatTS8ADNk3Ft3O" // Change your SECRET
+#define ALIAS   "smartuniversity"       // Change your name
+
 #define LEDPin 16
 #define DHTPIN 12
 #define DHTTYPE DHT22
@@ -133,8 +134,8 @@ void loop() {
     sprintf(temp, "%d.%d", (int)tempread, tempread_decimal);
     sprintf(humid, "%d.%d", (int)humidread, humidread_decimal);
     // ส่งค่าไปยัง netpie
-    microgear.chat("smartfarm/Temperature", temp);
-    microgear.chat("smartfarm/Humidity", humid);
+    microgear.chat("smartuniversity/Temperature", temp);
+    microgear.chat("smartuniversity/Humidity", humid);
 
     espert.oled.clear();
     espert.oled.setTextSize(1);
