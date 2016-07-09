@@ -1,17 +1,14 @@
-#include <AuthClient.h>
-#include <MicroGear.h>
-#include <MQTTClient.h>
-#include <SHA1.h>
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <EEPROM.h>
+#include <ArduinoJson.h>
 #include <MicroGear.h>
-#include "DHT.h"
+#include <ESP8266WiFi.h>
 #include <ESPert.h>
+#include "DHT.h"
 
-const char* ssid     = "AVEC_RMUTL";  // Change your ssid wifi
-const char* password = "avecqwerty";  // Change your password wifi
+const char* ssid     = "@ESPertAP_001";  // Change your ssid wifi : ESPERT-002
+const char* password = "espertap";  // Change your password wifi : espertap
 
+// NETPIE.io : man_LightControl
 #define APPID   "HelloCMMC"             // Change your appID
 #define KEY     "BZYTbAa9ItnMyeW"       // Change your Key
 #define SECRET  "h4aeKNOFIlSatTS8ADNk3Ft3O" // Change your SECRET
@@ -21,16 +18,16 @@ const char* password = "avecqwerty";  // Change your password wifi
 #define DHTPIN 12
 #define DHTTYPE DHT22
 
-WiFiClient client;
-AuthClient *authclient;
-
-int timer = 0;
-MicroGear microgear(client);
 
 ESPert espert;
-
+WiFiClient client;
+MicroGear microgear(client);
 DHT dht(DHTPIN, DHTTYPE);
 
+void init_hardware();
+void init_wifi();
+
+/******************* microgear loop ***********************************/
 void onFoundgear(char *attribute, uint8_t* msg, unsigned int msglen) {
   Serial.print("Found new member --> ");
   for (int i = 0; i < msglen; i++)
@@ -48,7 +45,6 @@ void onLostgear(char *attribute, uint8_t* msg, unsigned int msglen) {
 void onConnected(char *attribute, uint8_t* msg, unsigned int msglen) {
   Serial.println("Connected to NETPIE...");
   microgear.setName("mygear");
-  //  microgear.subscribe("/mygear_slave");
 }
 
 void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
@@ -79,41 +75,41 @@ void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
   }
 }
 
-void setup() {
-  /* Event listener */
+void init_hardware() {
   microgear.on(MESSAGE, onMsghandler);
   microgear.on(PRESENT, onFoundgear);
   microgear.on(ABSENT, onLostgear);
   microgear.on(CONNECTED, onConnected);
 
   Serial.begin(115200);
-  Serial.println("Starting...");
-
-  pinMode(LEDPin, OUTPUT);
-  digitalWrite(16, LOW);
-
   espert.init();
   espert.oled.init();
   delay(2000);
 
   dht.begin();
+  pinMode(LEDPin, OUTPUT);
+  digitalWrite(LEDPin, LOW);
+}
 
+void init_wifi() {
   if (WiFi.begin(ssid, password)) {
-
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
   }
-
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-
-  //uncomment the line below if you want to reset token -->
   microgear.resetToken();
   microgear.init(KEY, SECRET, ALIAS);
   microgear.connect(APPID);
+}
+
+/************************* loop ***********************************/
+void setup() {
+  init_hardware();
+  init_wifi();
 }
 
 void loop() {
@@ -124,23 +120,20 @@ void loop() {
     // อ่านค่าจากเซ็นเซอร์ DHt22
     float tempread = dht.readTemperature();
     float humidread = dht.readHumidity();
-    // ประกาศตัวแปรเพื่อเก็บค่าสำหรับส่งไปยัง netpie
-    char temp[10];
-    char humid[10];
-    // แยกจำนวนเลขทศนิยมออก เพื่อเก็บไว้ในอาเรย์
-    int tempread_decimal = (tempread - (int)tempread) * 100;
-    int humidread_decimal = (humidread - (int)humidread) * 100;
-    // บันทึกต่าในอาเรย์ในส่วนของจำนวนจริง และทศนิม
-    sprintf(temp, "%d.%d", (int)tempread, tempread_decimal);
-    sprintf(humid, "%d.%d", (int)humidread, humidread_decimal);
+
+    // แปลงค่า float ให้เป็น String
+    char buffer[50];
+    String temp = dtostrf(tempread, 4, 2, buffer);
+    String humid = dtostrf(humidread, 4, 2, buffer);
+
     // ส่งค่าไปยัง netpie
-    microgear.chat("smartuniversity/Temperature", temp);
-    microgear.chat("smartuniversity/Humidity", humid);
+    microgear.chat("smartuniversity/Temperature", temp.c_str());
+    microgear.chat("smartuniversity/Humidity", humid.c_str());
 
     espert.oled.clear();
     espert.oled.setTextSize(1);
     espert.oled.setTextColor(ESPERT_WHITE);
-    espert.oled.setCursor(0, 32);
+    espert.oled.setCursor(0, 24);
 
     espert.oled.println("Hello NETPIE");
     espert.oled.print("Temperature = ");
@@ -155,6 +148,7 @@ void loop() {
     Serial.print("\t");
     Serial.print("Humidity = ");
     Serial.println(humidread);
+    delay(1000);
   }
   else
   {
